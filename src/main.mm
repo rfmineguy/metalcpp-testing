@@ -12,6 +12,9 @@
 @implementation MetalView {
 	id<MTLRenderPipelineState> _pipelineState;
 	CADisplayLink *_displayLink;
+	id<MTLBuffer> _vertexBuffer;
+	id<MTLLibrary> _library;
+	id<MTLFunction> _vertexFunction, _fragFunction;
 }
 - (instancetype)initWithFrame:(NSRect)frameRect {
     self = [super initWithFrame:frameRect];
@@ -24,19 +27,45 @@
         self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
         self.commandQueue = [self.device newCommandQueue];
 
+				[self createTriangle];
         [self setupPipeline];
 				[self setupDisplayLink];
     }
     return self;
 }
+- (void)dealloc {
+	[super dealloc];
+	[_vertexBuffer release];
+	_vertexBuffer = nil;
+	[_displayLink invalidate];
+	_displayLink = nil;
+	[self.commandQueue release];
+	self.commandQueue = nil;
+
+	[_library release];
+	_library = nil;
+	[_vertexFunction release];
+	_vertexFunction = nil;
+	[_fragFunction release];
+	_fragFunction = nil;
+}
+- (void)createTriangle {
+	float triangleVertices[][3] = {
+		{-0.5f, -0.5f, 0.0f},
+		{ 0.5f, -0.5f, 0.0f},
+		{ 0.0f,  0.5f, 0.0f}
+	};
+	_vertexBuffer = [self.device newBufferWithBytes:triangleVertices length:sizeof(triangleVertices) options: MTLResourceStorageModeShared];
+}
 - (void)setupPipeline {
-    id<MTLLibrary> library = [self.device newDefaultLibrary];
-    id<MTLFunction> vertexFunction = [library newFunctionWithName:@"vertex_main"];
-    id<MTLFunction> fragmentFunction = [library newFunctionWithName:@"fragment_main"];
+    _library = [self.device newDefaultLibrary];
+    _vertexFunction = [_library newFunctionWithName:@"vertex_main"];
+    _fragFunction = [_library newFunctionWithName:@"fragment_main"];
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    pipelineDescriptor.vertexFunction = vertexFunction;
-    pipelineDescriptor.fragmentFunction = fragmentFunction;
+		pipelineDescriptor.label = @"Triangle Rendering Pipeline";
+    pipelineDescriptor.vertexFunction = _vertexFunction;
+    pipelineDescriptor.fragmentFunction = _fragFunction;
     pipelineDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat;
 
 		 // Create the vertex descriptor to define the layout of vertex attributes
@@ -62,13 +91,18 @@
 
 		NSError *error = nil;
 		_pipelineState = [self.device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
+		// [pipelineDescriptor release];
     if (!_pipelineState) {
         NSLog(@"Failed to create pipeline state: %@", error);
     }
+		[vertexDescriptor release];
+		[pipelineDescriptor release];
+	NSLog(@"Created pipeline state");
 }
 - (void)setupDisplayLink {
 	_displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(render)];
 	[_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+	NSLog(@"Setup display link");
 }
 
 - (void)render {
@@ -78,6 +112,7 @@
         return;
     }
     
+		NSLog(@"Begin render");
     MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     passDescriptor.colorAttachments[0].texture = drawable.texture;
     passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
@@ -86,13 +121,21 @@
 
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:passDescriptor];
-    
-    [encoder setRenderPipelineState:_pipelineState];
+		[encoder setRenderPipelineState: _pipelineState];
+		[encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
+		MTLPrimitiveType triangleType = MTLPrimitiveTypeTriangle;
+		NSUInteger vertStart = 0;
+		NSUInteger vertCount = 3;
+		[encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     [encoder endEncoding];
 
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
+		[commandBuffer waitUntilCompleted];
+
+		// [passDescriptor release];
+		NSLog(@"End Render");
 }
 @end
 
@@ -126,4 +169,6 @@ int main() {
 	[app setActivationPolicy:NSApplicationActivationPolicyRegular];
 	[app activateIgnoringOtherApps:YES];
 	[app run];
+
+	[metalView dealloc];
 }
