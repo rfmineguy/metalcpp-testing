@@ -105,12 +105,25 @@ int main() {
                                                                   NSWindowStyleMaskResizable)
 																											 backing:NSBackingStoreBuffered
 																											 defer:NO];
-	[window setTitle: @"Window"];
-																													 
 	MetalView *metalView = [[MetalView alloc] initWithFrame:frame];
+	[window setTitle: @"Window"];
 	[window setContentView:metalView];
 	[window makeKeyAndOrderFront:nil];
+	NSLog(@"Window is key: %d", [window isKeyWindow]);
+
+	// Setup menu
+	[NSApp setMainMenu:[[NSMenu alloc] init]];
+	NSMenuItem* appMenuItem = [[NSMenuItem alloc] init];
+	NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"Application"];
+	[appMenu addItem:[[NSMenuItem alloc] initWithTitle:@"Quit"
+	 																		 action:@selector(terminate:) 
+																			 keyEquivalent:@"q"]];
+
+	[appMenuItem setSubmenu:appMenu];
+	[[NSApp mainMenu] addItem:appMenuItem];
 
 	NSLog(@"Should be running");
+	[app setActivationPolicy:NSApplicationActivationPolicyRegular];
+	[app activateIgnoringOtherApps:YES];
 	[app run];
 }
