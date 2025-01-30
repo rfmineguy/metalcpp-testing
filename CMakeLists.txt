@@ -1,15 +1,23 @@
 cmake_minimum_required(VERSION 3.20)
-project(metalcpp-test)
-set(CMAKE_CXX_STANDARD 17)
+project(metal-test LANGUAGES CXX OBJCXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(FetchContent)
-FetchContent_Declare(metal_cpp GIT_REPOSITORY https://github.com/bkaradzic/metal-cpp.git GIT_TAG metal-cpp_macOS15.2_iOS18.2)
-FetchContent_MakeAvailable(metal_cpp)
+# Metal shaders (optional)
+file(GLOB SHADERS "shaders/*.metal")
 
-message("- ${metal_cpp_SOURCE_DIR}")
+set(SOURCES src/main.mm)
 
-set(SOURCES src/main.cpp)
+add_executable(metal-test ${SOURCES})
+target_link_libraries(metal-test PRIVATE "-framework Cocoa" "-framework Metal" "-framework QuartzCore" "-framework CoreFoundation")
+set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAAGS "-ObjC++")
 
-add_executable(metalcpp-test ${SOURCES})
-target_include_directories(metalcpp-test PRIVATE ${metal_cpp_SOURCE_DIR})
+add_custom_command(
+    OUTPUT shaders.metallib
+    COMMAND xcrun -sdk macosx metal -o default.metallib ${SHADERS}
+    DEPENDS ${SHADERS}
+)
+
+add_custom_target(compile_shaders ALL DEPENDS shaders.metallib)
+add_dependencies(metal-test compile_shaders)
