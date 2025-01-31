@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Metal shaders (optional)
 file(GLOB SHADERS "shaders/*.metal")
 
-set(SOURCES src/main.mm)
+set(SOURCES src/main.mm src/MetalView.mm)
 
 add_executable(metal-test ${SOURCES})
 target_link_libraries(metal-test PRIVATE "-framework Cocoa" "-framework Metal" "-framework QuartzCore" "-framework CoreFoundation")
