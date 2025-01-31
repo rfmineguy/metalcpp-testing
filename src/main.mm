@@ -31,6 +31,7 @@
         [self setupPipeline];
 				[self setupDisplayLink];
     }
+		NSLog(@"[MetalView] Initialized");
     return self;
 }
 - (void)dealloc {
@@ -56,17 +57,24 @@
 		{ 0.0f,  0.5f, 0.0f}
 	};
 	_vertexBuffer = [self.device newBufferWithBytes:triangleVertices length:sizeof(triangleVertices) options: MTLResourceStorageModeShared];
+	NSLog(@"[Triangle] Create triangle vertex buffer");
 }
 - (void)setupPipeline {
-    _library = [self.device newDefaultLibrary];
+    NSError* error = nil;
+    NSURL* url = [NSURL fileURLWithPath:@"../default.metallib"];
+    NSLog(@"url = %@", url);
+    _library = [self.device newLibraryWithURL:url error:&error];
+    // _library = [self.device newLibraryWithFile:@"default.metallib"];
     _vertexFunction = [_library newFunctionWithName:@"vertex_main"];
     _fragFunction = [_library newFunctionWithName:@"fragment_main"];
+    NSLog(@"[Pipeline] Setup shaders {library = %@}", _library);
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
 		pipelineDescriptor.label = @"Triangle Rendering Pipeline";
     pipelineDescriptor.vertexFunction = _vertexFunction;
     pipelineDescriptor.fragmentFunction = _fragFunction;
     pipelineDescriptor.colorAttachments[0].pixelFormat = self.metalLayer.pixelFormat;
+		NSLog(@"[Pipeline] Setup pipeline descriptor");
 
 		 // Create the vertex descriptor to define the layout of vertex attributes
     MTLVertexDescriptor *vertexDescriptor = [[MTLVertexDescriptor alloc] init];
@@ -88,8 +96,8 @@
 
     // Set the vertex descriptor for the pipeline
     pipelineDescriptor.vertexDescriptor = vertexDescriptor;
+		NSLog(@"[Pipeline] Setup vertex descriptor and attached to the pipeline");
 
-		NSError *error = nil;
 		_pipelineState = [self.device newRenderPipelineStateWithDescriptor:pipelineDescriptor error:&error];
 		// [pipelineDescriptor release];
     if (!_pipelineState) {
@@ -97,12 +105,12 @@
     }
 		[vertexDescriptor release];
 		[pipelineDescriptor release];
-	NSLog(@"Created pipeline state");
+	NSLog(@"[Pipeline] Created pipeline state");
 }
 - (void)setupDisplayLink {
 	_displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(render)];
 	[_displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-	NSLog(@"Setup display link");
+	NSLog(@"[DisplayLink] Setup");
 }
 
 - (void)render {
@@ -112,11 +120,11 @@
         return;
     }
     
-		NSLog(@"Begin render");
+		NSLog(@"[Render] Begin");
     MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     passDescriptor.colorAttachments[0].texture = drawable.texture;
     passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.1, 0.1, 0.1, 1);
+    passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.1, 0.1, 1);
     passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
 
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
@@ -135,7 +143,7 @@
 		[commandBuffer waitUntilCompleted];
 
 		// [passDescriptor release];
-		NSLog(@"End Render");
+		NSLog(@"[Render] End");
 }
 @end
 
