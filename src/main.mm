@@ -51,10 +51,10 @@
 	_fragFunction = nil;
 }
 - (void)createTriangle {
-	float triangleVertices[][3] = {
-		{-0.5f, -0.5f, 0.0f},
-		{ 0.5f, -0.5f, 0.0f},
-		{ 0.0f,  0.5f, 0.0f}
+	float triangleVertices[][6] = {
+		{-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
+		{ 0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
+		{ 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f}
 	};
 	_vertexBuffer = [self.device newBufferWithBytes:triangleVertices length:sizeof(triangleVertices) options: MTLResourceStorageModeShared];
 	NSLog(@"[Triangle] Create triangle vertex buffer");
@@ -90,7 +90,7 @@
     vertexDescriptor.attributes[1].bufferIndex = 0; // Attribute 1 is in the first buffer
     
     // Define the layout of the vertex buffer (stride = 32 bytes: 16 for position + 16 for color)
-    vertexDescriptor.layouts[0].stride = 32;
+    vertexDescriptor.layouts[0].stride = 24;
     vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     vertexDescriptor.layouts[0].stepRate = 1;
 
@@ -124,26 +124,26 @@
     MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     passDescriptor.colorAttachments[0].texture = drawable.texture;
     passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.1, 0.1, 1);
+    passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.4, 0.1, 1);
     passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
 
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:passDescriptor];
-		[encoder setRenderPipelineState: _pipelineState];
-		[encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
-		MTLPrimitiveType triangleType = MTLPrimitiveTypeTriangle;
-		NSUInteger vertStart = 0;
-		NSUInteger vertCount = 3;
-		[encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
+    [encoder setRenderPipelineState: _pipelineState];
+    [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
+    MTLPrimitiveType triangleType = MTLPrimitiveTypeTriangle;
+    NSUInteger vertStart = 0;
+    NSUInteger vertCount = 3;
+    [encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     [encoder endEncoding];
 
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
-		[commandBuffer waitUntilCompleted];
+    [commandBuffer waitUntilCompleted];
 
-		// [passDescriptor release];
-		NSLog(@"[Render] End");
+    // [passDescriptor release];
+    NSLog(@"[Render] End");
 }
 @end
 
