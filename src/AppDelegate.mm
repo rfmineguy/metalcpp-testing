@@ -37,6 +37,7 @@
 - (void)windowDidResize:(NSNotification *)notification {
     NSSize newSize = self.window.frame.size;
     NSLog(@"Window resized: Width = %f, Height = %f", newSize.width, newSize.height);
+    _metalView.metalLayer.drawableSize = CGSizeMake(newSize.width, newSize.height);
 }
 - (void) applicationWillTerminate:(NSNotification *) notification {
     NSLog(@"Application terminating");

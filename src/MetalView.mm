@@ -1,4 +1,5 @@
 #import "MetalView.h"
+#include "stb_image.h"
 
 @implementation MetalView {
     id<MTLRenderPipelineState> _pipelineState;
@@ -6,6 +7,9 @@
     id<MTLBuffer> _vertexBuffer;
     id<MTLLibrary> _library;
     id<MTLFunction> _vertexFunction, _fragFunction;
+
+    id<MTLTexture> _texture;
+    int _textureWidth, _textureHeight, _textureChannels;
 }
 - (instancetype)initWithFrame:(NSRect)frameRect {
     self = [super initWithFrame:frameRect];
@@ -42,7 +46,7 @@
         if (success) {
             NSLog(@"File deleted successfully.");
         } else {
-            NSLog(@"Failed to delete file: %@", error.localizedDescription);
+            NSLog(@"No capture file to remove %@", error.localizedDescription);
         }
 
         MTLCaptureDescriptor *captureDescriptor = [[MTLCaptureDescriptor alloc] init];
@@ -54,7 +58,7 @@
             // Start the capture
             NSError *error;
             [captureManager startCaptureWithDescriptor:captureDescriptor error:&error];
-            // [captureDescriptor dealloc];
+            [captureDescriptor dealloc];
             NSLog(@"[MetalView] Started capture: %@", error);
         } @catch (NSException *exception) {
             NSLog(@"Error when trying to capture: %@", exception);
@@ -65,7 +69,8 @@
 
         self.commandQueue = [self.device newCommandQueue];
 
-        [self createTriangle];
+        [self createTexture];
+        [self createSquare];
         [self setupPipeline];
         [self setupDisplayLink];
     }
@@ -81,6 +86,8 @@
     NSLog(@"[MetalView] Stopped capture");
 #endif
 
+    [_texture release];
+    _texture = nil;
     [_vertexBuffer release];
     _vertexBuffer = nil;
     [_displayLink invalidate];
@@ -97,13 +104,46 @@
     NSLog(@"[MetalView]: Deallocated fully");
     // [super dealloc];
 }
-- (void)createTriangle {
-    float triangleVertices[][6] = {
-        {-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
-        { 0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
-        { 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f}
+- (void)createTexture {
+    stbi_set_flip_vertically_on_load(true);
+    NSBundle* mainBundle = [NSBundle mainBundle];
+    NSString* path = [mainBundle pathForResource: @"assets/mc_grass" ofType:@"jpeg"];
+
+    unsigned char* image = stbi_load([path UTF8String], &_textureWidth, &_textureHeight, &_textureChannels, STBI_rgb_alpha);
+    if (image == nil) {
+        NSLog(@"Image load failed, reason = %s for path: %s", stbi_failure_reason(), [path UTF8String]);
+        exit(1);
+    }
+    
+    MTLTextureDescriptor* textDesc = [[MTLTextureDescriptor alloc] init];
+    [textDesc setPixelFormat: MTLPixelFormatBGRA8Unorm];
+    [textDesc setWidth: _textureWidth];
+    [textDesc setHeight: _textureHeight];
+    
+    _texture = [self.device newTextureWithDescriptor: textDesc];
+
+    MTLRegion region = MTLRegionMake2D(0, 0, _textureWidth, _textureHeight);
+    [_texture replaceRegion:region mipmapLevel: 0 withBytes: image bytesPerRow: 4 * _textureWidth];
+    [textDesc release];
+    stbi_image_free(image);
+    NSLog(@"[MetalView] Created texture");
+}
+- (void)createSquare {
+    // float squareVertices[3][6] = {
+    //     {-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
+    //     { 0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
+    //     { 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f}
+    // };
+
+    float squareVertices[][6] {
+        {-0.5, -0.5,  0.5, 1.0f, 0.0f, 0.0f}, // float4 (position), float2 (uv te cooord)
+        {-0.5,  0.5,  0.5, 1.0f, 0.0f, 1.0f},
+        { 0.5,  0.5,  0.5, 1.0f, 1.0f, 1.0f},
+        {-0.5, -0.5,  0.5, 1.0f, 0.0f, 0.0f},
+        { 0.5,  0.5,  0.5, 1.0f, 1.0f, 1.0f},
+        { 0.5, -0.5,  0.5, 1.0f, 1.0f, 0.0f}
     };
-    _vertexBuffer = [self.device newBufferWithBytes:triangleVertices length:sizeof(triangleVertices) options: MTLResourceStorageModeShared];
+    _vertexBuffer = [self.device newBufferWithBytes:squareVertices length:sizeof(squareVertices) options: MTLResourceStorageModeShared];
     NSLog(@"[Triangle] Create triangle vertex buffer");
 }
 - (void)setupPipeline {
@@ -112,8 +152,8 @@
     NSLog(@"url: %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
     // _library = [self.device newLibraryWithFile:@"default.metallib"];
-    _vertexFunction = [_library newFunctionWithName:@"vertex_main"];
-    _fragFunction = [_library newFunctionWithName:@"fragment_main"];
+    _vertexFunction = [_library newFunctionWithName:@"vertexShader"];
+    _fragFunction = [_library newFunctionWithName:@"fragmentShader"];
     NSLog(@"[Pipeline] Setup shaders {library = %@}", _library);
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
@@ -174,13 +214,15 @@
     passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.4, 0.1, 1);
     passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
 
+    // Command buffer
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:passDescriptor];
     [encoder setRenderPipelineState: _pipelineState];
     [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
     MTLPrimitiveType triangleType = MTLPrimitiveTypeTriangle;
     NSUInteger vertStart = 0;
-    NSUInteger vertCount = 3;
+    NSUInteger vertCount = 6;
+    [encoder setFragmentTexture: _texture atIndex: 0];
     [encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     [encoder endEncoding];
