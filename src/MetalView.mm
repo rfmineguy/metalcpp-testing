@@ -1,6 +1,5 @@
 #import "MetalView.h"
 
-
 @implementation MetalView {
     id<MTLRenderPipelineState> _pipelineState;
     CADisplayLink *_displayLink;
@@ -17,17 +16,40 @@
         self.device = MTLCreateSystemDefaultDevice();
         self.metalLayer.device = self.device;
         self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+
+//https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
+        MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
+
+        // Create a capture descriptor
+        MTLCaptureDescriptor *captureDescriptor = [[MTLCaptureDescriptor alloc] init];
+        captureDescriptor.captureObject = self.device;
+        captureDescriptor.destination = MTLCaptureDestinationGPUTraceDocument;
+
+        @try {
+            // Start the capture
+            [captureManager startCaptureWithDescriptor:captureDescriptor error:nil];
+            [captureDescriptor dealloc];
+            NSLog(@"[MetalView] Started capture");
+        } @catch (NSException *exception) {
+            NSLog(@"Error when trying to capture: %@", exception);
+            abort();
+        }
+
         self.commandQueue = [self.device newCommandQueue];
 
-                [self createTriangle];
+        [self createTriangle];
         [self setupPipeline];
-                [self setupDisplayLink];
+        [self setupDisplayLink];
     }
-        NSLog(@"[MetalView] Initialized");
+    
+    NSLog(@"[MetalView] Initialized");
     return self;
 }
 - (void)dealloc {
-    [super dealloc];
+    MTLCaptureManager *captureManager = [MTLCaptureManager sharedCaptureManager];
+    [captureManager stopCapture];
+    NSLog(@"[MetalView] Stopped capture");
+
     [_vertexBuffer release];
     _vertexBuffer = nil;
     [_displayLink invalidate];
@@ -41,6 +63,8 @@
     _vertexFunction = nil;
     [_fragFunction release];
     _fragFunction = nil;
+    NSLog(@"[MetalView]: Deallocated fully");
+    // [super dealloc];
 }
 - (void)createTriangle {
     float triangleVertices[][6] = {
@@ -53,7 +77,7 @@
 }
 - (void)setupPipeline {
     NSError* error = nil;
-    NSURL* url = [NSURL fileURLWithPath:@"../default.metallib"];
+    NSURL* url = [NSURL fileURLWithPath:@"default.metallib"];
     NSLog(@"url = %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
     // _library = [self.device newLibraryWithFile:@"default.metallib"];
@@ -112,7 +136,7 @@
         return;
     }
     
-        NSLog(@"[Render] Begin");
+    // NSLog(@"[Render] Begin");
     MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     passDescriptor.colorAttachments[0].texture = drawable.texture;
     passDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
@@ -135,6 +159,6 @@
     [commandBuffer waitUntilCompleted];
 
     // [passDescriptor release];
-    NSLog(@"[Render] End");
+    // NSLog(@"[Render] End");
 }
 @end
