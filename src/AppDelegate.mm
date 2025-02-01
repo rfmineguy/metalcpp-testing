@@ -15,7 +15,7 @@
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
     
-    [self.window setTitle:@"Resize Listener"];
+    [self.window setTitle:@"Metal Test"];
     [self.window setDelegate:self]; // Set the delegate to listen for resize events
     [self.window makeKeyAndOrderFront:nil];
     

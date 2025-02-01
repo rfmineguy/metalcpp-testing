@@ -17,23 +17,41 @@
         self.metalLayer.device = self.device;
         self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 
-//https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
+        //https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
         MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
+        if ([captureManager supportsDestination: MTLCaptureDestinationGPUTraceDocument]) {
+            NSLog(@"Supports GPU trace doc");
+        }
+        else {
+            NSLog(@"Doesnt support GPU trace doc");
+        }
 
         // Create a capture descriptor
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSArray *docsDirs = [fm URLsForDirectory:NSDocumentDirectory inDomains: NSUserDomainMask];
+        NSURL *docsDir = docsDirs[0];
+        NSString *docsPath = [docsDir path];
+        
+        NSString *savePath = [docsPath stringByAppendingString: @"/capture.gputrace"];
+        NSURL *pURL = [[NSURL alloc] initFileURLWithPath: savePath];
+
         MTLCaptureDescriptor *captureDescriptor = [[MTLCaptureDescriptor alloc] init];
         captureDescriptor.captureObject = self.device;
         captureDescriptor.destination = MTLCaptureDestinationGPUTraceDocument;
+        captureDescriptor.outputURL = pURL;
 
         @try {
             // Start the capture
-            [captureManager startCaptureWithDescriptor:captureDescriptor error:nil];
-            [captureDescriptor dealloc];
-            NSLog(@"[MetalView] Started capture");
+            NSError *error;
+            [captureManager startCaptureWithDescriptor:captureDescriptor error:&error];
+            // [captureDescriptor dealloc];
+            NSLog(@"[MetalView] Started capture: %@", error);
         } @catch (NSException *exception) {
             NSLog(@"Error when trying to capture: %@", exception);
             abort();
         }
+        NSLog(@"[MetalView] Is capturing? %d", [captureManager isCapturing]);
+
 
         self.commandQueue = [self.device newCommandQueue];
 
@@ -47,6 +65,7 @@
 }
 - (void)dealloc {
     MTLCaptureManager *captureManager = [MTLCaptureManager sharedCaptureManager];
+    NSLog(@"[MetalView] Is capturing? %d", [captureManager isCapturing]);
     [captureManager stopCapture];
     NSLog(@"[MetalView] Stopped capture");
 
@@ -78,7 +97,7 @@
 - (void)setupPipeline {
     NSError* error = nil;
     NSURL* url = [NSURL fileURLWithPath:@"default.metallib"];
-    NSLog(@"url = %@", url);
+    NSLog(@"url: %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
     // _library = [self.device newLibraryWithFile:@"default.metallib"];
     _vertexFunction = [_library newFunctionWithName:@"vertex_main"];
