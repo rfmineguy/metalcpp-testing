@@ -2,9 +2,9 @@
 using namespace metal;
 using namespace simd;
 
-struct VertexData {
-    float4 position;
-    float2 textureCoordinate;
+struct VertexIn {
+    float4 position [[attribute(0)]];
+    float2 textureCoordinate [[attribute(1)]];
 };
 
 struct VertexOut {
@@ -12,11 +12,10 @@ struct VertexOut {
     float2 textureCoordinate;
 };
 
-vertex VertexOut vertexShader(uint vertexID [[vertex_id]],
-             constant VertexData* vertexData) {
+vertex VertexOut vertexShader(VertexIn in [[stage_in]]) {
     VertexOut out;
-    out.position = vertexData[vertexID].position;
-    out.textureCoordinate = vertexData[vertexID].textureCoordinate;
+    out.position = in.position;
+    out.textureCoordinate = in.textureCoordinate;
     return out;
 }
 

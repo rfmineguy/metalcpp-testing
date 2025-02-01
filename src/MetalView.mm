@@ -172,7 +172,7 @@
     vertexDescriptor.attributes[0].bufferIndex = 0; // Attribute 0 is in the first buffer
     
     // Define the layout for the color attribute (float4)
-    vertexDescriptor.attributes[1].format = MTLVertexFormatFloat4;
+    vertexDescriptor.attributes[1].format = MTLVertexFormatFloat2;
     vertexDescriptor.attributes[1].offset = 16; // After 4 floats (16 bytes) for position
     vertexDescriptor.attributes[1].bufferIndex = 0; // Attribute 1 is in the first buffer
     
