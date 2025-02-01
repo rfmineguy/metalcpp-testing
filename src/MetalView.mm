@@ -34,6 +34,16 @@
         
         NSString *savePath = [docsPath stringByAppendingString: @"/capture.gputrace"];
         NSURL *pURL = [[NSURL alloc] initFileURLWithPath: savePath];
+        NSError *error = nil;
+
+#ifdef FRAME_CAPTURE
+        // Delete the file at the specified path
+        BOOL success = [fm removeItemAtPath:savePath error:&error];
+        if (success) {
+            NSLog(@"File deleted successfully.");
+        } else {
+            NSLog(@"Failed to delete file: %@", error.localizedDescription);
+        }
 
         MTLCaptureDescriptor *captureDescriptor = [[MTLCaptureDescriptor alloc] init];
         captureDescriptor.captureObject = self.device;
@@ -51,7 +61,7 @@
             abort();
         }
         NSLog(@"[MetalView] Is capturing? %d", [captureManager isCapturing]);
-
+#endif
 
         self.commandQueue = [self.device newCommandQueue];
 
@@ -64,10 +74,12 @@
     return self;
 }
 - (void)dealloc {
+#ifdef FRAME_CAPTURE
     MTLCaptureManager *captureManager = [MTLCaptureManager sharedCaptureManager];
     NSLog(@"[MetalView] Is capturing? %d", [captureManager isCapturing]);
     [captureManager stopCapture];
     NSLog(@"[MetalView] Stopped capture");
+#endif
 
     [_vertexBuffer release];
     _vertexBuffer = nil;
@@ -176,6 +188,9 @@
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+#ifdef FRAME_CAPTURE
+    [[NSApplication sharedApplication] terminate: nil];
+#endif
 
     // [passDescriptor release];
     // NSLog(@"[Render] End");

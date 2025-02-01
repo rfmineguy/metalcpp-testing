@@ -25,6 +25,7 @@ set_source_files_properties(
 add_executable(metal-test MACOSX_BUNDLE ${SOURCES})
 target_link_libraries(metal-test PRIVATE "-framework Cocoa" "-framework Metal" "-framework QuartzCore" "-framework CoreFoundation")
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAAGS "-ObjC++")
+target_compile_definitions(metal-test PRIVATE FRAME_CAPTURE=ON)
 
 # Set the bundle properties
 set_target_properties(${MACOSX_BUNDLE_NAME} PROPERTIES
