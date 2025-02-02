@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Metal shaders (optional)
 file(GLOB SHADERS "shaders/*.metal")
 
-set(LIB_SOURCES src/stb_image_impl.c)
+set(LIB_SOURCES src/stb_image_impl.c src/AAPLMathUtilities.cpp)
 set(SOURCES src/main.mm src/MetalView.mm src/AppDelegate.mm)
 
 set(MACOSX_BUNDLE_NAME "metal-test")
@@ -41,13 +41,15 @@ add_custom_command(TARGET metal-test POST_BUILD
     COMMENT "Copy assets into the app bundle"
 )
 
-set(METAL_FLAGS -frecord-sources -gline-tables-only)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
+set(METAL_FLAGS -frecord-sources -gline-tables-only -I${CMAKE_SOURCE_DIR}/src)
 add_custom_command(
     OUTPUT shaders.metallib
     # COMMAND xcrun -sdk macosx metal -o default.metallib ${SHADERS}
     COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -o main.ir -c "${CMAKE_SOURCE_DIR}/shaders/main.metal"
     COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -o textured_square.ir -c "${CMAKE_SOURCE_DIR}/shaders/textured_square.metal"
-    COMMAND xcrun -sdk macosx metallib -o default.metallib main.ir textured_square.ir
+    COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -o cube.ir -c "${CMAKE_SOURCE_DIR}/shaders/cube.metal"
+    COMMAND xcrun -sdk macosx metallib -o default.metallib main.ir cube.ir
     DEPENDS ${SHADERS}
 )
 

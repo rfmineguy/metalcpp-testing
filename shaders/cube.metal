@@ -7,6 +7,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
+#define METAL_SHADER
 #include "VertexData.h"
 
 struct VertexOut {
@@ -15,8 +16,8 @@ struct VertexOut {
 };
 
 vertex VertexOut cube_vertex(uint vertexID [[vertex_id]],
-             constant VertexData* vertexData,
-             constant TransformationData* transformationData)
+             constant VertexData* vertexData [[buffer(0)]],
+             constant TransformationData* transformationData [[buffer(1)]])
 {
     VertexOut out;
     out.position = transformationData->perspMat * transformationData->viewMat * transformationData->modelMat * vertexData[vertexID].position;

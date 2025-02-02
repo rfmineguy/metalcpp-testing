@@ -1,11 +1,12 @@
 #import "MetalView.h"
 #include "VertexData.h"
+#include "AAPLMathUtilities.h"
 #include "stb_image.h"
 
 @implementation MetalView {
     id<MTLRenderPipelineState> _pipelineState;
     CADisplayLink *_displayLink;
-    id<MTLBuffer> _vertexBuffer;
+    id<MTLBuffer> _vertexBuffer, _transformationBuffer;
     id<MTLLibrary> _library;
     id<MTLFunction> _vertexFunction, _fragFunction;
 
@@ -192,6 +193,7 @@
         {{0.5, -0.5, 0.5, 1.0}, {0.0, 0.0}},
     };
     _vertexBuffer = [self.device newBufferWithBytes:cubeVertices length:sizeof(cubeVertices) options: MTLResourceStorageModeShared];
+    _transformationBuffer = [self.device newBufferWithLength:sizeof(TransformationData) options:MTLResourceStorageModeShared];
     NSLog(@"[Triangle] Create triangle vertex buffer");
 }
 - (void)setupPipeline {
@@ -199,8 +201,8 @@
     NSURL* url = [NSURL fileURLWithPath:@"default.metallib"];
     NSLog(@"url: %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
-    _vertexFunction = [_library newFunctionWithName:@"textured_quad_vert"];
-    _fragFunction = [_library newFunctionWithName:@"textured_quad_frag"];
+    _vertexFunction = [_library newFunctionWithName:@"cube_vertex"];
+    _fragFunction = [_library newFunctionWithName:@"cube_fragment"];
     NSLog(@"[Pipeline] Setup shaders {library = %@}", _library);
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
@@ -262,14 +264,42 @@
     passDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.4, 0.1, 1);
     passDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
 
+    // Transformation math
+    matrix_float4x4 transMat = matrix4x4_translation(0, 0, -1.0);
+    float rads = 30 * M_PI / 180;
+    matrix_float4x4 rotMat = matrix4x4_rotation(rads, 0, 1, 0);
+    matrix_float4x4 modelMat = simd_mul(transMat, rotMat);
+    
+    simd::float3 R = simd::float3 {1, 0, 0}; // Unit-Right
+    simd::float3 U = simd::float3 {0, 1, 0}; // Unit-Up
+    simd::float3 F = simd::float3 {0, 0,-1}; // Unit-Forward
+    simd::float3 P = simd::float3 {0, 0, 1}; // Camera Position in World Space
+
+    matrix_float4x4 viewMatrix = matrix_make_rows(R.x, R.y, R.z, simd_dot(-R, P),
+                                                  U.x, U.y, U.z, simd_dot(-U, P),
+                                                 -F.x,-F.y,-F.z, simd_dot( F, P),
+                                                  0, 0, 0, 1);
+
+    float aspect = (_metalLayer.frame.size.width / _metalLayer.frame.size.height);
+    float fov = 90 * (M_PI / 180.f);
+    float nearZ = 0.1f;
+    float farZ = 100.0f;
+
+    matrix_float4x4 perspMatrix = matrix_perspective_right_hand(fov, aspect, nearZ, farZ);
+
+    TransformationData tdata = { modelMat, viewMatrix, perspMatrix };
+    memcpy([_transformationBuffer contents], &tdata, sizeof(tdata));
+    
     // Command buffer
     id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
     id<MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:passDescriptor];
+
     [encoder setRenderPipelineState: _pipelineState];
     [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
+    [encoder setVertexBuffer:_transformationBuffer offset:0 atIndex:1];
     MTLPrimitiveType triangleType = MTLPrimitiveTypeTriangle;
     NSUInteger vertStart = 0;
-    NSUInteger vertCount = 6;
+    NSUInteger vertCount = 36;
     [encoder setFragmentTexture: _texture atIndex: 0];
     [encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
     // [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
