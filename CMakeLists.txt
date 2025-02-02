@@ -27,7 +27,7 @@ set_source_files_properties(
 add_executable(metal-test MACOSX_BUNDLE ${SOURCES} ${LIB_SOURCES})
 target_link_libraries(metal-test PRIVATE "-framework Cocoa" "-framework Metal" "-framework QuartzCore" "-framework CoreFoundation")
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAAGS "-ObjC++")
-target_compile_definitions(metal-test PRIVATE FRAME_CAPTURE=ON)
+target_compile_definitions(metal-test PRIVATE FRAME_CAPTURE=1)
 
 # Set the bundle properties
 set_target_properties(${MACOSX_BUNDLE_NAME} PROPERTIES
@@ -41,11 +41,12 @@ add_custom_command(TARGET metal-test POST_BUILD
     COMMENT "Copy assets into the app bundle"
 )
 
+set(METAL_FLAGS -frecord-sources -gline-tables-only)
 add_custom_command(
     OUTPUT shaders.metallib
     # COMMAND xcrun -sdk macosx metal -o default.metallib ${SHADERS}
-    COMMAND xcrun -sdk macosx metal -o main.ir -c "${CMAKE_SOURCE_DIR}/shaders/main.metal"
-    COMMAND xcrun -sdk macosx metal -o textured_square.ir -c "${CMAKE_SOURCE_DIR}/shaders/textured_square.metal"
+    COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -o main.ir -c "${CMAKE_SOURCE_DIR}/shaders/main.metal"
+    COMMAND xcrun -sdk macosx metal ${METAL_FLAGS} -o textured_square.ir -c "${CMAKE_SOURCE_DIR}/shaders/textured_square.metal"
     COMMAND xcrun -sdk macosx metallib -o default.metallib main.ir textured_square.ir
     DEPENDS ${SHADERS}
 )

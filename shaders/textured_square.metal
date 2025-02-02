@@ -12,14 +12,14 @@ struct VertexOut {
     float2 textureCoordinate;
 };
 
-vertex VertexOut vertexShader(VertexIn in [[stage_in]]) {
+vertex VertexOut textured_quad_vert(VertexIn in [[stage_in]]) {
     VertexOut out;
     out.position = in.position;
     out.textureCoordinate = in.textureCoordinate;
     return out;
 }
 
-fragment float4 fragmentShader(VertexOut in [[stage_in]],
+fragment float4 textured_quad_frag(VertexOut in [[stage_in]],
                                texture2d<float> colorTexture [[texture(0)]]) {
     constexpr sampler textureSampler (mag_filter::linear,
                                       min_filter::linear);

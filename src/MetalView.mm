@@ -1,4 +1,5 @@
 #import "MetalView.h"
+#include "VertexData.h"
 #include "stb_image.h"
 
 @implementation MetalView {
@@ -40,7 +41,7 @@
         NSURL *pURL = [[NSURL alloc] initFileURLWithPath: savePath];
         NSError *error = nil;
 
-#ifdef FRAME_CAPTURE
+#if defined(FRAME_CAPTURE) && (FRAME_CAPTURE==1)
         // Delete the file at the specified path
         BOOL success = [fm removeItemAtPath:savePath error:&error];
         if (success) {
@@ -79,7 +80,7 @@
     return self;
 }
 - (void)dealloc {
-#ifdef FRAME_CAPTURE
+#if defined(FRAME_CAPTURE) && (FRAME_CAPTURE==1)
     MTLCaptureManager *captureManager = [MTLCaptureManager sharedCaptureManager];
     NSLog(@"[MetalView] Is capturing? %d", [captureManager isCapturing]);
     [captureManager stopCapture];
@@ -129,19 +130,13 @@
     NSLog(@"[MetalView] Created texture");
 }
 - (void)createSquare {
-    // float squareVertices[3][6] = {
-    //     {-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
-    //     { 0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f},
-    //     { 0.0f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f}
-    // };
-
-    float squareVertices[][6] {
-        {-0.5, -0.5,  0.5, 1.0f, 0.0f, 0.0f}, // float4 (position), float2 (uv te cooord)
-        {-0.5,  0.5,  0.5, 1.0f, 0.0f, 1.0f},
-        { 0.5,  0.5,  0.5, 1.0f, 1.0f, 1.0f},
-        {-0.5, -0.5,  0.5, 1.0f, 0.0f, 0.0f},
-        { 0.5,  0.5,  0.5, 1.0f, 1.0f, 1.0f},
-        { 0.5, -0.5,  0.5, 1.0f, 1.0f, 0.0f}
+    VertexData squareVertices[6] {
+         { { -0.5, -0.5, 0.0, 1.0}, {1.0, 1.0} },
+         { { -0.5,  0.5, 0.0, 1.0}, {1.0, 0.0} },
+         { {  0.5,  0.5, 0.0, 1.0}, {0.0, 0.0} },
+         { { -0.5, -0.5, 0.0, 1.0}, {1.0, 1.0} },
+         { {  0.5,  0.5, 0.0, 1.0}, {0.0, 0.0} },
+         { {  0.5, -0.5, 0.0, 1.0}, {0.0, 1.0} },
     };
     _vertexBuffer = [self.device newBufferWithBytes:squareVertices length:sizeof(squareVertices) options: MTLResourceStorageModeShared];
     NSLog(@"[Triangle] Create triangle vertex buffer");
@@ -152,8 +147,8 @@
     NSLog(@"url: %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
     // _library = [self.device newLibraryWithFile:@"default.metallib"];
-    _vertexFunction = [_library newFunctionWithName:@"vertexShader"];
-    _fragFunction = [_library newFunctionWithName:@"fragmentShader"];
+    _vertexFunction = [_library newFunctionWithName:@"textured_quad_vert"];
+    _fragFunction = [_library newFunctionWithName:@"textured_quad_frag"];
     NSLog(@"[Pipeline] Setup shaders {library = %@}", _library);
     
     MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
@@ -168,16 +163,17 @@
     
     // Define the layout for the position attribute (float4)
     vertexDescriptor.attributes[0].format = MTLVertexFormatFloat4;
-    vertexDescriptor.attributes[0].offset = 0;
+    vertexDescriptor.attributes[0].offset = offsetof(VertexData, position);
     vertexDescriptor.attributes[0].bufferIndex = 0; // Attribute 0 is in the first buffer
     
-    // Define the layout for the color attribute (float4)
+    // Define the layout for the color attribute (float2)
     vertexDescriptor.attributes[1].format = MTLVertexFormatFloat2;
-    vertexDescriptor.attributes[1].offset = 16; // After 4 floats (16 bytes) for position
+    vertexDescriptor.attributes[1].offset = offsetof(VertexData, texCoord); // After 4 floats (16 bytes) for position
     vertexDescriptor.attributes[1].bufferIndex = 0; // Attribute 1 is in the first buffer
     
-    // Define the layout of the vertex buffer (stride = 32 bytes: 16 for position + 16 for color)
-    vertexDescriptor.layouts[0].stride = 24;
+    // Define the layout of the vertex buffer (stride = 24 bytes: 16 for position + 8 for tex coord)
+    NSLog(@"size: %lu", sizeof(VertexData));
+    vertexDescriptor.layouts[0].stride = sizeof(VertexData);
     vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     vertexDescriptor.layouts[0].stepRate = 1;
 
@@ -224,13 +220,13 @@
     NSUInteger vertCount = 6;
     [encoder setFragmentTexture: _texture atIndex: 0];
     [encoder drawPrimitives:triangleType vertexStart:vertStart vertexCount:vertCount];
-    [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+    // [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     [encoder endEncoding];
 
     [commandBuffer presentDrawable:drawable];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-#ifdef FRAME_CAPTURE
+#if defined(FRAME_CAPTURE) && (FRAME_CAPTURE==1)
     [[NSApplication sharedApplication] terminate: nil];
 #endif
 
