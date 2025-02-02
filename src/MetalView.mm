@@ -71,7 +71,7 @@
         self.commandQueue = [self.device newCommandQueue];
 
         [self createTexture];
-        [self createSquare];
+        [self createCube];
         [self setupPipeline];
         [self setupDisplayLink];
     }
@@ -141,12 +141,64 @@
     _vertexBuffer = [self.device newBufferWithBytes:squareVertices length:sizeof(squareVertices) options: MTLResourceStorageModeShared];
     NSLog(@"[Triangle] Create triangle vertex buffer");
 }
+- (void)createCube {
+    VertexData cubeVertices[36] {
+        // Front face
+        {{-0.5, -0.5, 0.5, 1.0}, {0.0, 0.0}},
+        {{0.5, -0.5, 0.5, 1.0}, {1.0, 0.0}},
+        {{0.5, 0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, 0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, 0.5, 0.5, 1.0}, {0.0, 1.0}},
+        {{-0.5, -0.5, 0.5, 1.0}, {0.0, 0.0}},
+
+        // Back face
+        {{0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+        {{-0.5, -0.5, -0.5, 1.0}, {1.0, 0.0}},
+        {{-0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, 0.5, -0.5, 1.0}, {0.0, 1.0}},
+        {{0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+
+        // Top face
+        {{-0.5, 0.5, 0.5, 1.0}, {0.0, 0.0}},
+        {{0.5, 0.5, 0.5, 1.0}, {1.0, 0.0}},
+        {{0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, 0.5, -0.5, 1.0}, {0.0, 1.0}},
+        {{-0.5, 0.5, 0.5, 1.0}, {0.0, 0.0}},
+
+        // Bottom face
+        {{-0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+        {{0.5, -0.5, -0.5, 1.0}, {1.0, 0.0}},
+        {{0.5, -0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, -0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, -0.5, 0.5, 1.0}, {0.0, 1.0}},
+        {{-0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+
+        // Left face
+        {{-0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+        {{-0.5, -0.5, 0.5, 1.0}, {1.0, 0.0}},
+        {{-0.5, 0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, 0.5, 0.5, 1.0}, {1.0, 1.0}},
+        {{-0.5, 0.5, -0.5, 1.0}, {0.0, 1.0}},
+        {{-0.5, -0.5, -0.5, 1.0}, {0.0, 0.0}},
+
+        // Right face
+        {{0.5, -0.5, 0.5, 1.0}, {0.0, 0.0}},
+        {{0.5, -0.5, -0.5, 1.0}, {1.0, 0.0}},
+        {{0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, 0.5, -0.5, 1.0}, {1.0, 1.0}},
+        {{0.5, 0.5, 0.5, 1.0}, {0.0, 1.0}},
+        {{0.5, -0.5, 0.5, 1.0}, {0.0, 0.0}},
+    };
+    _vertexBuffer = [self.device newBufferWithBytes:cubeVertices length:sizeof(cubeVertices) options: MTLResourceStorageModeShared];
+    NSLog(@"[Triangle] Create triangle vertex buffer");
+}
 - (void)setupPipeline {
     NSError* error = nil;
     NSURL* url = [NSURL fileURLWithPath:@"default.metallib"];
     NSLog(@"url: %@", url);
     _library = [self.device newLibraryWithURL:url error:&error];
-    // _library = [self.device newLibraryWithFile:@"default.metallib"];
     _vertexFunction = [_library newFunctionWithName:@"textured_quad_vert"];
     _fragFunction = [_library newFunctionWithName:@"textured_quad_frag"];
     NSLog(@"[Pipeline] Setup shaders {library = %@}", _library);
